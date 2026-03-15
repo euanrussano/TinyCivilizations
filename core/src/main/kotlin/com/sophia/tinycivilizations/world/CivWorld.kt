@@ -54,8 +54,67 @@ class CivWorld(
     }
 
     private fun annexTile(empire: Empire, tile: Tile) {
+        if (tile.owner != null){
+            tile.owner!!.removeTerritory(tile.x to tile.y)
+            updateBorderEmpires(tile.owner!!)
+        }
         tile.owner = empire
-        empire.territories.add(tile.x to tile.y)
+        empire.addTerritory(tile.x to tile.y)
+        updateBorderEmpires(empire)
+
+    }
+
+    private fun updateBorderEmpires(empire: Empire) {
+        for (territory in empire.territories) {
+            for (pair in civMap.getNeighbors(territory.first, territory.second)) {
+                val tile = civMap.tiles.getOrNull(pair.first)?.getOrNull(pair.second)?: return
+                if (tile.owner != null && tile.owner != empire){
+                    empire.addBorderEmpire(tile.owner!!)
+                }
+                if (tile.occupier != null && tile.occupier != empire){
+                    empire.addBorderEmpire(tile.occupier!!)
+                }
+
+            }
+        }
+
+    }
+
+    fun resolveBattle(empire: Empire, target: Empire) {
+        if (empire == target) error("Empire cannot declare war on itself")
+
+        println("Battle between ${empire.name} and ${target.name}")
+        println("Empire ${empire.name} economy: ${empire.economy}")
+        println("Empire ${target.name} economy: ${target.economy}")
+        val p_fair = 0.5f
+        var p_final = p_fair
+        if (empire.economy > target.economy*2) {
+            p_final = 0.7f
+        } else if (target.economy > empire.economy*2) {
+            p_final = 0.3f
+        }
+
+        var winner = target
+        var loser = empire
+        val p = random.nextFloat()
+        if (p < p_final) {
+            winner = empire
+            loser = target
+        }
+        println("Winner: ${winner.name}")
+        println("Loser: ${loser.name}")
+
+        // exchange one tile
+        for (territory in loser.territories){
+            for (pair in civMap.getNeighbors(territory.first, territory.second)) {
+                if (pair in winner.territories){
+                    annexTile(winner, civMap.tiles[territory.first][territory.second])
+                    println("Empire ${winner.name} annexed ${territory.first} ${territory.second}")
+                    return
+                }
+            }
+        }
+
     }
 
 }
